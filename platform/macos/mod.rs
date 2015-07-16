@@ -10,13 +10,16 @@
 
 //! Sandboxing on Mac OS X via Seatbelt (`sandboxd`).
 
-use platform::unix::process::Process;
+use std::process::Child;
 use profile::{self, AddressPattern, OperationSupport, OperationSupportLevel, PathPattern, Profile};
-use sandbox::{ChildSandboxMethods, Command, SandboxMethods};
+use sandbox::{ChildSandboxMethods, SandboxMethods};
+use std::process::Command;
 
 use libc::{c_char, c_int};
-use std::ffi::{AsOsStr, CString};
-use std::old_io::{IoResult, MemWriter};
+use std::ffi::{CString};
+use std::io;
+use std::io::Write;
+use std::path::Path;
 use std::ptr;
 use std::str;
 
@@ -65,7 +68,8 @@ impl SandboxMethods for Sandbox {
         &self.profile
     }
 
-    fn start(&self, command: &mut Command) -> IoResult<Process> {
+    fn start(&self, command: &mut Command) -> io::Result<Child> {
+        command.clear_env();
         command.env("GAOL_CHILD_PROCESS", "1").spawn()
     }
 }
@@ -84,7 +88,7 @@ impl ChildSandbox {
 
 impl ChildSandboxMethods for ChildSandbox {
     fn activate(&self) -> Result<(),()> {
-        let mut sandbox_profile = MemWriter::new();
+        let mut sandbox_profile = Vec::new();
         sandbox_profile.write_all(SANDBOX_PROFILE_PROLOGUE).unwrap();
         for operation in self.profile.allowed_operations().iter() {
             match *operation {
@@ -139,7 +143,7 @@ impl ChildSandboxMethods for ChildSandbox {
     }
 }
 
-fn write_file_pattern(sandbox_profile: &mut MemWriter, path_pattern: &PathPattern) {
+fn write_file_pattern<T: Write>(sandbox_profile: &mut T, path_pattern: &PathPattern) {
     match *path_pattern {
         PathPattern::Literal(ref path) => {
             sandbox_profile.write_all(b"(literal ").unwrap();
@@ -153,11 +157,11 @@ fn write_file_pattern(sandbox_profile: &mut MemWriter, path_pattern: &PathPatter
     sandbox_profile.write_all(b")").unwrap()
 }
 
-fn write_path(sandbox_profile: &mut MemWriter, path: &Path) {
+fn write_path<T: Write>(sandbox_profile: &mut T, path: &Path) {
     write_quoted_string(sandbox_profile, path.as_os_str().to_str().unwrap().as_bytes())
 }
 
-fn write_quoted_string(sandbox_profile: &mut MemWriter, string: &[u8]) {
+fn write_quoted_string<T: Write>(sandbox_profile: &mut T, string: &[u8]) {
     sandbox_profile.write_u8(b'"').unwrap();
     for &byte in string.iter() {
         // FIXME(pcwalton): Is this the right way to quote strings in TinyScheme?

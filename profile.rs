@@ -12,6 +12,8 @@
 
 use platform;
 
+use std::path::Path;
+
 /// A sandbox profile, which specifies the set of operations that this process is allowed to
 /// perform. Operations not in the list are implicitly prohibited.
 ///
@@ -77,13 +79,13 @@ use platform;
 /// behavior is undefined if they do. For example, you may not allow metadata reads of the subpath
 /// rooted at `/dev` while allowing full reads of `/dev/null`; you must instead allow full reads of
 /// `/dev` or make the profile more restrictive.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Profile {
     allowed_operations: Vec<Operation>,
 }
 
 /// An operation that this process is allowed to perform.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Operation {
     /// All file-related reading operations may be performed on this file.
     FileReadAll(PathPattern),
@@ -98,7 +100,7 @@ pub enum Operation {
 }
 
 /// Describes a path or paths on the filesystem.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum PathPattern {
     /// One specific path.
     Literal(Path),
@@ -107,7 +109,7 @@ pub enum PathPattern {
 }
 
 /// Describes a network address.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum AddressPattern {
     /// All network addresses.
     All,
